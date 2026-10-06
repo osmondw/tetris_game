@@ -32,6 +32,10 @@ body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;background:
 .pixel-btn:active,.pixel-btn.active{transform:scale(.95);border-color:#0f172a #64748b #64748b #0f172a}
 .pixel-btn:disabled{opacity:.4}
 .pixel-btn svg{width:22px;height:22px;display:block;margin:auto;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.btns{display:flex;gap:6px}
+.btns .pixel-btn{padding:10px 8px;font-size:9px;display:flex;align-items:center;gap:6px}
+.btns .pixel-btn svg{width:14px;height:14px;margin:0}
+#reset-btn span{display:none}
 .controls{flex:none;display:none;gap:6px}
 .controls .pixel-btn{flex:1;height:64px;padding:0;touch-action:none}
 .controls .wide{flex:1.5}
@@ -41,6 +45,8 @@ body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;background:
   .panel{flex-direction:column;align-items:stretch;justify-content:flex-start;width:190px}
   .panel h1{display:block}.stats{flex-direction:column;gap:18px;margin-bottom:24px}
   .stat .v{font-size:20px}.stat .l{font-size:10px}
+  .btns{flex-direction:column}.btns .pixel-btn{justify-content:center;padding:12px 14px;font-size:11px}
+  #reset-btn span{display:inline}
 }
 @media (max-width:767px),(hover:none) and (pointer:coarse){.controls{display:flex}}
 </style>
@@ -55,7 +61,12 @@ body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;background:
         <div class="stat"><p class="l">LINES</p><p class="v" id="lines-display">0</p></div>
         <div class="stat"><p class="l">LEVEL</p><p class="v" id="level-display">1</p></div>
       </div>
-      <button id="pause-btn" class="pixel-btn" style="color:#fb923c" disabled>PAUSE</button>
+      <div class="btns">
+        <button id="pause-btn" class="pixel-btn" style="color:#fb923c" disabled>PAUSE</button>
+        <button id="reset-btn" class="pixel-btn" style="color:#f87171" aria-label="Reset" disabled>
+          <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v5h5"/></svg><span>RESET</span>
+        </button>
+      </div>
     </div>
     <div class="stage" id="stage">
       <div class="board-wrap">
@@ -321,8 +332,28 @@ function startGame() {
   updateScoreBoard();
   [startScreen, pauseScreen, gameOverScreen].forEach(e => e.classList.add('hidden'));
   pauseBtn.disabled = false; pauseBtn.innerText = 'PAUSE';
+  $('reset-btn').disabled = false;
   playerReset();
   loop();
+}
+
+// Reset total: kembali ke kondisi awal (skor 0, papan kosong, layar START)
+function resetGame() {
+  if (!gameStarted) return;
+  if (!isGameOver && !confirm('Reset game dari awal? Skor akan hilang.')) return;
+  cancelAnimationFrame(rafId);
+  music('stop');
+  board = createMatrix(COLS, ROWS);
+  score = 0; lines = 0; level = 1; dropInterval = 1000; dropCounter = 0;
+  isGameOver = false; isPaused = false; gameStarted = false;
+  player.matrix = null;
+  updateScoreBoard();
+  pauseScreen.classList.add('hidden');
+  gameOverScreen.classList.add('hidden');
+  startScreen.classList.remove('hidden');
+  pauseBtn.disabled = true; pauseBtn.innerText = 'PAUSE';
+  $('reset-btn').disabled = true;
+  draw();
 }
 
 // --- INPUT ---
@@ -344,6 +375,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && gam
 $('start-btn').addEventListener('click', startGame);
 $('restart-btn').addEventListener('click', startGame);
 pauseBtn.addEventListener('click', togglePause);
+$('reset-btn').addEventListener('click', resetGame);
 $('resume-btn').addEventListener('click', togglePause);
 
 // Tombol sentuh: tahan untuk mengulang (kiri/kanan/turun)
