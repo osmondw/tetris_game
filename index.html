@@ -130,8 +130,7 @@ body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;background:
 // ==========================================
 // KONFIGURASI DATABASE (SUPABASE)
 // ==========================================
-// Ganti URL dan KEY di bawah ini dengan milik Anda setelah membuat project di Supabase.com
-const SUPABASE_URL = 'https://lygcdaikrlewutggwpjh.supabase.co/'; // cth: https://xyz.supabase.co
+const SUPABASE_URL = 'https://lygcdaikrlewutggwpjh.supabase.co'; 
 const SUPABASE_KEY = 'sb_publishable_LNTrJHelZeiuef49BlXHxQ_GR3q47Vf';
 // ==========================================
 
@@ -144,7 +143,6 @@ const startScreen = $('start-screen'), pauseScreen =$('pause-screen'), gameOverS
 const pauseBtn = $('pause-btn');
 
 let board = [], score = 0, lines = 0, level = 1;
-// KETERANGAN: Kecepatan awal diubah dari 1000 menjadi 800 (20% lebih cepat)
 let dropCounter = 0, dropInterval = 800, lastTime = 0, rafId = null;
 let isGameOver = false, gameStarted = false, isPaused = false;
 let playerName = "PLAYER";
@@ -165,21 +163,18 @@ async function submitAndFetchLeaderboard(finalScore) {
   const lbContainer = $('leaderboard-container');
   lbContainer.innerHTML = '<p class="loading-text">Menyimpan skor & memuat leaderboard...</p>';
 
-  // Fallback: Jika kunci Supabase belum diganti, simpan di localStorage peramban (Mock Database)
   if (SUPABASE_URL === 'YOUR_SUPABASE_PROJECT_URL') {
     let mockDB = JSON.parse(localStorage.getItem('tetris_lb') || '[]');
     mockDB.push({ name: playerName, score: finalScore });
     mockDB.sort((a,b) => b.score - a.score);
-    mockDB = mockDB.slice(0, 5); // Ambil Top 5
+    mockDB = mockDB.slice(0, 5); 
     localStorage.setItem('tetris_lb', JSON.stringify(mockDB));
     
     setTimeout(() => { renderLeaderboardUI(mockDB); }, 1000);
     return;
   }
 
-  // Jika Supabase sudah dikonfigurasi
   try {
-    // 1. Insert Skor Baru
     await fetch(`${SUPABASE_URL}/rest/v1/leaderboard`, {
       method: 'POST',
       headers: {
@@ -191,7 +186,6 @@ async function submitAndFetchLeaderboard(finalScore) {
       body: JSON.stringify({ name: playerName, score: finalScore })
     });
 
-    // 2. Fetch Top 5 Leaderboard
     const response = await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=name,score&order=score.desc&limit=5`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
@@ -211,228 +205,4 @@ function renderLeaderboardUI(data) {
   }
   data.forEach((row, i) => {
     lbContainer.innerHTML += `
-      <div class="lb-row">
-        <span>${i+1}. ${row.name}</span>
-        <span>${row.score}</span>
-      </div>`;
-  });
-}
-
-// --- ALUR INPUT NAMA ---
-$('save-name-btn').addEventListener('click', () => {
-  const inputVal = $('player-input').value.trim().toUpperCase();
-  playerName = inputVal !== "" ? inputVal : "ANON";
-  playerEl.innerText = playerName;
-  nameScreen.classList.add('hidden');
-  startScreen.classList.remove('hidden');
-});
-
-// --- AUDIO ---
-let audioOK = false, bgmSynth, sfxSynth, bgmSequence;
-try {
-  bgmSynth = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.1 } }).toDestination();
-  bgmSynth.volume.value = -15;
-  sfxSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle' } }).toDestination();
-  sfxSynth.volume.value = -8;
-  const bgmNotes = ['E5','B4','C5','D5','C5','B4','A4','A4','C5','E5','D5','C5','B4','B4','C5','D5','E5','C5','A4','A4',null];
-  bgmSequence = new Tone.Sequence((t, n) => { if (n != null) bgmSynth.triggerAttackRelease(n, '8n', t); }, bgmNotes, '8n');
-  audioOK = true;
-} catch (e) { console.warn('Audio nonaktif:', e); }
-
-function playSound(type) {
-  if (!audioOK || Tone.context.state !== 'running') return;
-  try {
-    const n = Tone.now();
-    switch (type) {
-      case 'move': sfxSynth.triggerAttackRelease('C4', '64n'); break;
-      case 'rotate': sfxSynth.triggerAttackRelease('E4', '64n'); break;
-      case 'drop': sfxSynth.triggerAttackRelease('G2', '16n'); break;
-      case 'clear':
-        sfxSynth.triggerAttackRelease('C5', '16n', n);
-        sfxSynth.triggerAttackRelease('E5', '16n', n + 0.1);
-        sfxSynth.triggerAttackRelease('G5', '16n', n + 0.2);
-        sfxSynth.triggerAttackRelease('C6', '8n', n + 0.3); break;
-      case 'gameover':
-        sfxSynth.triggerAttackRelease('Gb4', '8n', n);
-        sfxSynth.triggerAttackRelease('F4', '8n', n + 0.2);
-        sfxSynth.triggerAttackRelease('E4', '8n', n + 0.4);
-        sfxSynth.triggerAttackRelease('Eb4', '2n', n + 0.6); break;
-    }
-  } catch (e) {}
-}
-function music(action) {
-  if (!audioOK) return;
-  try {
-    if (action === 'start') { Tone.Transport.stop(); bgmSequence.stop(); Tone.Transport.bpm.value = 120; bgmSequence.start(0); Tone.Transport.start(); }
-    else if (action === 'stop') { Tone.Transport.stop(); bgmSequence.stop(); }
-    else if (action === 'pause') Tone.Transport.pause();
-    else if (action === 'resume') Tone.Transport.start();
-    else if (action === 'tempo') Tone.Transport.bpm.value = 120 + level * 5;
-  } catch (e) {}
-}
-
-// --- LOGIKA TETRIS ---
-const COLORS = [null,'#06b6d4','#3b82f6','#f97316','#eab308','#22c55e','#a855f7','#ef4444'];
-const TETROMINOES = [[],[[0,1,0,0],[0,1,0,0],[0,1,0,0],[0,1,0,0]],[[2,0,0],[2,2,2],[0,0,0]],[[0,0,3],[3,3,3],[0,0,0]],[[4,4],[4,4]],[[0,5,5],[5,5,0],[0,0,0]],[[0,6,0],[6,6,6],[0,0,0]],[[7,7,0],[0,7,7],[0,0,0]]];
-let player = { pos: { x: 0, y: 0 }, matrix: null };
-const createMatrix = (w, h) => Array.from({ length: h }, () => new Array(w).fill(0));
-
-function playerReset() {
-  const id = 1 + (Math.random() * 7 | 0);
-  player.matrix = TETROMINOES[id].map(r => [...r]);
-  player.pos.y = 0;
-  player.pos.x = (COLS >> 1) - (player.matrix[0].length >> 1);
-  if (collide(board, player)) gameOver();
-}
-
-function collide(b, p) {
-  const m = p.matrix, o = p.pos;
-  for (let y = 0; y < m.length; ++y)
-    for (let x = 0; x < m[y].length; ++x)
-      if (m[y][x] !== 0 && (b[y + o.y] && b[y + o.y][x + o.x]) !== 0) return true;
-  return false;
-}
-
-function merge(b, p) {
-  p.matrix.forEach((row, y) => row.forEach((v, x) => { if (v !== 0) b[y + p.pos.y][x + p.pos.x] = v; }));
-}
-
-function arenaSweep() {
-  let cleared = 0;
-  outer: for (let y = board.length - 1; y >= 0; --y) {
-    for (let x = 0; x < board[y].length; ++x) if (board[y][x] === 0) continue outer;
-    board.unshift(board.splice(y, 1)[0].fill(0));
-    ++y; cleared++;
-  }
-  if (cleared > 0) {
-    playSound('clear');
-    score += [0, 100, 300, 500, 800][Math.min(cleared, 4)] * level;
-    lines += cleared;
-    level = Math.floor(lines / 10) + 1;
-    // Kecepatan diubah: batas base 800 dikurangi berdasarkan level
-    dropInterval = Math.max(100, 800 - level * 80);
-    music('tempo');
-    updateScoreBoard();
-  }
-}
-
-function updateScoreBoard() { scoreEl.innerText = score; linesEl.innerText = lines; levelEl.innerText = level; }
-
-function lockPiece() { merge(board, player); playerReset(); arenaSweep(); if (!isGameOver) playSound('drop'); dropCounter = 0; }
-function playerDrop() { if (isPaused) return; player.pos.y++; if (collide(board, player)) { player.pos.y--; lockPiece(); } dropCounter = 0; }
-function playerHardDrop() { if (isPaused) return; while (!collide(board, player)) player.pos.y++; player.pos.y--; lockPiece(); }
-function playerMove(dir) { if (isPaused) return; player.pos.x += dir; if (collide(board, player)) player.pos.x -= dir; else playSound('move'); }
-function rotateMatrix(m, dir) { for (let y = 0; y < m.length; ++y) for (let x = 0; x < y; ++x) [m[x][y], m[y][x]] = [m[y][x], m[x][y]]; if (dir > 0) m.forEach(r => r.reverse()); else m.reverse(); }
-function playerRotate() {
-  if (isPaused) return; const pos = player.pos.x; let offset = 1; rotateMatrix(player.matrix, 1);
-  while (collide(board, player)) { player.pos.x += offset; offset = -(offset + (offset > 0 ? 1 : -1));
-    if (offset > player.matrix[0].length) { rotateMatrix(player.matrix, -1); player.pos.x = pos; return; }
-  } playSound('rotate');
-}
-
-// --- RENDER ---
-function drawMatrix(matrix, off) {
-  matrix.forEach((row, y) => row.forEach((v, x) => {
-    if (v === 0) return;
-    const px = (x + off.x) * BLOCK_SIZE, py = (y + off.y) * BLOCK_SIZE;
-    ctx.fillStyle = COLORS[v]; ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
-    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(px, py, BLOCK_SIZE, 4); ctx.fillRect(px, py, 4, BLOCK_SIZE);
-    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(px, py + BLOCK_SIZE - 4, BLOCK_SIZE, 4); ctx.fillRect(px + BLOCK_SIZE - 4, py, 4, BLOCK_SIZE);
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
-  }));
-}
-function draw() {
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
-  for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) ctx.strokeRect(c * BLOCK_SIZE, r * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-  drawMatrix(board, { x: 0, y: 0 });
-  if (player.matrix) drawMatrix(player.matrix, player.pos);
-}
-
-function update(time) {
-  if (isGameOver || isPaused) return;
-  const delta = Math.min(time - lastTime, 250);
-  lastTime = time;
-  dropCounter += delta;
-  if (dropCounter > dropInterval) playerDrop();
-  draw();
-  rafId = requestAnimationFrame(update);
-}
-function loop() { cancelAnimationFrame(rafId); lastTime = performance.now(); rafId = requestAnimationFrame(update); }
-
-function gameOver() {
-  isGameOver = true;
-  cancelAnimationFrame(rafId);
-  music('stop');
-  playSound('gameover');
-  $('final-score').innerText = score;
-  gameOverScreen.classList.remove('hidden');
-  pauseBtn.disabled = true;
-  draw();
-  
-  // Memanggil API Supabase untuk menyimpan dan menampilkan skor
-  submitAndFetchLeaderboard(score);
-}
-
-function togglePause() {
-  if (!gameStarted || isGameOver) return;
-  isPaused = !isPaused;
-  if (isPaused) { cancelAnimationFrame(rafId); pauseScreen.classList.remove('hidden'); music('pause'); pauseBtn.innerText = 'RESUME'; }
-  else { pauseScreen.classList.add('hidden'); music('resume'); pauseBtn.innerText = 'PAUSE'; loop(); }
-}
-
-function startGame() {
-  if (audioOK) { try { Tone.start().then(() => music('start')).catch(() => {}); } catch (e) {} }
-  board = createMatrix(COLS, ROWS);
-  score = 0; lines = 0; level = 1; dropInterval = 800; // Reset ke kecepatan baru
-  isGameOver = false; isPaused = false; gameStarted = true;
-  updateScoreBoard();
-  [startScreen, pauseScreen, gameOverScreen, nameScreen].forEach(e => e.classList.add('hidden'));
-  pauseBtn.disabled = false; pauseBtn.innerText = 'PAUSE';
-  $('reset-btn').disabled = false;
-  playerReset();
-  loop();
-}
-
-function resetGame() {
-  if (!gameStarted) return;
-  if (!isGameOver && !confirm('Reset game dari awal? Skor akan hilang.')) return;
-  cancelAnimationFrame(rafId);
-  music('stop');
-  board = createMatrix(COLS, ROWS);
-  score = 0; lines = 0; level = 1; dropInterval = 800; dropCounter = 0;
-  isGameOver = false; isPaused = false; gameStarted = false;
-  player.matrix = null;
-  updateScoreBoard();
-  pauseScreen.classList.add('hidden');
-  gameOverScreen.classList.add('hidden');
-  nameScreen.classList.remove('hidden'); // Kembali ke input nama
-  pauseBtn.disabled = true; pauseBtn.innerText = 'PAUSE';
-  $('reset-btn').disabled = true;
-  draw();
-}
-
-document.addEventListener('keydown', e => {
-  if (!gameStarted || isGameOver || isPaused) { if (e.keyCode === 27 || e.keyCode === 80) togglePause(); return; }
-  if ([37, 38, 39, 40, 32].includes(e.keyCode)) e.preventDefault();
-  switch (e.keyCode) { case 37: playerMove(-1); break; case 39: playerMove(1); break; case 40: playerDrop(); break; case 38: playerRotate(); break; case 32: playerHardDrop(); break; }
-});
-document.addEventListener('visibilitychange', () => { if (document.hidden && gameStarted && !isGameOver && !isPaused) togglePause(); });
-
-$('start-btn').addEventListener('click', startGame);$('restart-btn').addEventListener('click', startGame);
-pauseBtn.addEventListener('click', togglePause);
-$('reset-btn').addEventListener('click', resetGame);$('resume-btn').addEventListener('click', togglePause);
-
-function bindTouchBtn(id, cb, repeat) {
-  const el = $(id); let delay, timer;
-  const act = () => { if (gameStarted && !isGameOver && !isPaused) cb(); };
-  const stop = () => { clearTimeout(delay); clearInterval(timer); el.classList.remove('active'); };
-  el.addEventListener('pointerdown', e => { e.preventDefault(); stop(); el.classList.add('active'); act(); if (repeat) delay = setTimeout(() => { timer = setInterval(act, 70); }, 170); });
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => el.addEventListener(ev, stop)); el.addEventListener('contextmenu', e => e.preventDefault());
-}
-bindTouchBtn('btn-left', () => playerMove(-1), true); bindTouchBtn('btn-right', () => playerMove(1), true); bindTouchBtn('btn-down', playerDrop, true); bindTouchBtn('btn-rotate', playerRotate, false); bindTouchBtn('btn-drop', playerHardDrop, false);
-
-board = createMatrix(COLS, ROWS); resizeBoard(); draw();
-</script>
-</body>
-</html>
+      <div
