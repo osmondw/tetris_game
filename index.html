@@ -1,875 +1,482 @@
 <!DOCTYPE html>
-
 <html lang="id">
-
 <head>
-
 <meta charset="UTF-8">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-
 <title>Retro Arcade Tetris</title>
-
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-
 <style>
-
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-
 html,body{margin:0;height:100%}
-
 body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;background:#0f172a;color:#e2e8f0;
-
   font-family:'Press Start 2P',monospace;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-
 #app{position:fixed;inset:0;display:flex;flex-direction:column;gap:8px;max-width:960px;margin:0 auto;
-
   padding:calc(env(safe-area-inset-top) + 8px) 8px calc(env(safe-area-inset-bottom) + 8px)}
-
 .arcade{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:8px;border:4px solid #38bdf8;border-radius:12px;
-
   background:#1e293b;box-shadow:0 0 20px rgba(56,189,248,.5),inset 0 0 20px rgba(56,189,248,.2)}
-
 .panel{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px}
-
 .panel h1{display:none;margin:0 0 24px;font-size:24px;color:#22d3ee;text-shadow:0 0 8px rgba(34,211,238,.8)}
-
 .stats{display:flex;gap:14px}
-
 .stat p{margin:0}.stat .l{font-size:8px;color:#94a3b8;margin-bottom:6px}.stat .v{font-size:14px}
-
 #score-display{color:#fde047}#level-display{color:#e879f9}
-
 .stage{flex:1;min-height:0;min-width:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
-
 .board-wrap{position:relative}
-
 #tetris-canvas{display:block;width:150px;height:300px;background:#000;image-rendering:pixelated;box-shadow:0 0 0 2px #334155}
-
 .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
-
   padding:12px;text-align:center;background:rgba(15,23,42,.95); z-index:10;}
-
 .overlay.hidden{display:none !important}
-
 .overlay h2{margin:0;font-size:16px}.overlay p{margin:0;font-size:9px;line-height:1.6;color:#cbd5e1}
-
 .pixel-btn{font-family:inherit;color:#fff;background:#334155;border:3px solid;border-color:#64748b #0f172a #0f172a #64748b;
-
   padding:12px 14px;font-size:11px;touch-action:manipulation;cursor:pointer}
-
 .pixel-btn:active,.pixel-btn.active{transform:scale(.95);border-color:#0f172a #64748b #64748b #0f172a}
-
 .pixel-btn:disabled{opacity:.4}
-
 .pixel-btn svg{width:22px;height:22px;display:block;margin:auto;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
-
 .btns{display:flex;gap:6px}
-
 .btns .pixel-btn{padding:10px 8px;font-size:9px;display:flex;align-items:center;gap:6px}
-
 .btns .pixel-btn svg{width:14px;height:14px;margin:0}
-
 #reset-btn span{display:none}
-
 .controls{flex:none;display:none;gap:6px}
-
 .controls .pixel-btn{flex:1;height:64px;padding:0;touch-action:none}
-
 .controls .wide{flex:1.5}
-
 #btn-drop{color:#f87171;border-color:#ef4444;font-size:10px}#btn-rotate{color:#60a5fa;border-color:#3b82f6}
 
-
-
 /* --- Tambahan CSS untuk Player Name & Leaderboard --- */
-
 #player-input{font-family:inherit; background:#000; color:#4ade80; border:2px solid #4ade80; padding:10px; font-size:12px; width:80%; text-align:center; outline:none; text-transform:uppercase;}
-
 .leaderboard-box{background:#000; border:2px solid #fb923c; padding:10px; width:90%; max-height:120px; overflow-y:auto; font-size:9px; text-align:left; color:#cbd5e1;}
-
 .lb-row{display:flex; justify-content:space-between; margin-bottom:8px; border-bottom:1px dashed #334155; padding-bottom:4px;}
-
 .lb-row span:nth-child(2){color:#fde047;}
-
 .loading-text{color:#fb923c; font-size:8px; animation:blink 1s infinite;}
-
 @keyframes blink { 50% {opacity: 0.5;} }
 
-
-
 @media (min-width:768px){
-
   .arcade{flex-direction:row;gap:24px;padding:16px}
-
   .panel{flex-direction:column;align-items:stretch;justify-content:flex-start;width:190px}
-
   .panel h1{display:block}.stats{flex-direction:column;gap:18px;margin-bottom:24px}
-
   .stat .v{font-size:20px}.stat .l{font-size:10px}
-
   .btns{flex-direction:column}.btns .pixel-btn{justify-content:center;padding:12px 14px;font-size:11px}
-
   #reset-btn span{display:inline}
-
 }
-
 @media (max-width:767px),(hover:none) and (pointer:coarse){.controls{display:flex}}
-
 </style>
-
 </head>
-
 <body>
-
 <div id="app">
-
   <div class="arcade">
-
     <div class="panel">
-
       <h1>TETRIS</h1>
-
       <div class="stats">
-
         <div class="stat"><p class="l">PLAYER</p><p class="v" id="player-display" style="color:#4ade80; font-size:10px;"></p></div>
-
         <div class="stat"><p class="l">SCORE</p><p class="v" id="score-display">0</p></div>
-
         <div class="stat"><p class="l">LINES</p><p class="v" id="lines-display">0</p></div>
-
         <div class="stat"><p class="l">LEVEL</p><p class="v" id="level-display">1</p></div>
-
       </div>
-
       <div class="btns">
-
         <button id="pause-btn" class="pixel-btn" style="color:#fb923c" disabled>PAUSE</button>
-
         <button id="reset-btn" class="pixel-btn" style="color:#f87171" aria-label="Reset" disabled>
-
           <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v5h5"/></svg><span>RESET</span>
-
         </button>
-
       </div>
-
     </div>
-
     <div class="stage" id="stage">
-
       <div class="board-wrap">
-
         <canvas id="tetris-canvas" width="300" height="600"></canvas>
 
-        
-
         <!-- Layar Input Nama -->
-
         <div id="name-screen" class="overlay">
-
           <h2 style="color:#4ade80">INSERT COIN</h2>
-
           <p>Masukkan namamu:</p>
-
           <input type="text" id="player-input" maxlength="8" placeholder="PLAYER 1" autocomplete="off">
-
           <button id="save-name-btn" class="pixel-btn" style="color:#22d3ee">LANJUT</button>
-
         </div>
-
-
 
         <div id="start-screen" class="overlay hidden">
-
           <h2 style="color:#22d3ee">TETRIS</h2>
-
           <button id="start-btn" class="pixel-btn" style="color:#4ade80">START GAME</button>
-
         </div>
-
-        
 
         <div id="pause-screen" class="overlay hidden">
-
           <h2 style="color:#fb923c">PAUSED</h2>
-
           <p>Tekan RESUME untuk melanjutkan.</p>
-
           <button id="resume-btn" class="pixel-btn">RESUME</button>
-
         </div>
-
-        
 
         <div id="game-over-screen" class="overlay hidden">
-
           <h2 style="color:#ef4444">GAME OVER</h2>
-
           <p>Skor Akhir: <span id="final-score" style="color:#fde047; font-size:12px;">0</span></p>
 
-          
-
           <!-- Leaderboard UI -->
-
           <p style="color:#fb923c; margin-top:10px;">TOP SCORES</p>
-
           <div class="leaderboard-box" id="leaderboard-container">
-
              <p class="loading-text">Menyimpan skor...</p>
-
           </div>
 
-
-
           <button id="restart-btn" class="pixel-btn" style="margin-top:10px;">MAIN LAGI</button>
-
         </div>
-
       </div>
-
     </div>
-
   </div>
-
-
 
   <div class="controls">
-
     <button id="btn-left" class="pixel-btn" aria-label="Kiri"><svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
-
     <button id="btn-right" class="pixel-btn" aria-label="Kanan"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-
     <button id="btn-down" class="pixel-btn" aria-label="Turun"><svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>
-
     <button id="btn-drop" class="pixel-btn wide">DROP</button>
-
     <button id="btn-rotate" class="pixel-btn" aria-label="Putar"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.5-5.8M20 4v5h-5"/></svg></button>
-
   </div>
-
 </div>
 
-
-
 <script>
-
 // ==========================================
-
 // KONFIGURASI DATABASE (SUPABASE)
-
 // ==========================================
-
 // Ganti URL dan KEY di bawah ini dengan milik Anda setelah membuat project di Supabase.com
-
 const SUPABASE_URL = 'https://lygcdaikrlewutggwpjh.supabase.co/'; // cth: https://xyz.supabase.co
-
 const SUPABASE_KEY = 'sb_publishable_LNTrJHelZeiuef49BlXHxQ_GR3q47Vf';
-
 // ==========================================
-
-
 
 const canvas = document.getElementById('tetris-canvas');
-
 const ctx = canvas.getContext('2d');
-
 const COLS = 10, ROWS = 20, BLOCK_SIZE = 30;
-
 const $ = id => document.getElementById(id);
-
 const scoreEl = $('score-display'), linesEl =$('lines-display'), levelEl = $('level-display'), playerEl =$('player-display');
-
 const startScreen = $('start-screen'), pauseScreen =$('pause-screen'), gameOverScreen = $('game-over-screen'), nameScreen =$('name-screen');
-
 const pauseBtn = $('pause-btn');
 
-
-
 let board = [], score = 0, lines = 0, level = 1;
-
 // KETERANGAN: Kecepatan awal diubah dari 1000 menjadi 800 (20% lebih cepat)
-
 let dropCounter = 0, dropInterval = 800, lastTime = 0, rafId = null;
-
 let isGameOver = false, gameStarted = false, isPaused = false;
-
 let playerName = "PLAYER";
 
-
-
 function resizeBoard() {
-
   const s = $('stage');
-
   const w = s.clientWidth, h = s.clientHeight;
-
   const cw = Math.max(100, Math.floor(Math.min(w, h / 2) / 2) * 2);
-
   canvas.style.width = cw + 'px';
-
   canvas.style.height = cw * 2 + 'px';
-
 }
-
 window.addEventListener('resize', resizeBoard);
-
 window.addEventListener('orientationchange', () => setTimeout(resizeBoard, 200));
-
 if (window.ResizeObserver) new ResizeObserver(resizeBoard).observe($('stage'));
 
-
-
 // --- LOGIKA DATABASE & LEADERBOARD ---
-
 async function submitAndFetchLeaderboard(finalScore) {
-
   const lbContainer = $('leaderboard-container');
-
   lbContainer.innerHTML = '<p class="loading-text">Menyimpan skor & memuat leaderboard...</p>';
 
-
-
   // Fallback: Jika kunci Supabase belum diganti, simpan di localStorage peramban (Mock Database)
-
   if (SUPABASE_URL === 'YOUR_SUPABASE_PROJECT_URL') {
-
     let mockDB = JSON.parse(localStorage.getItem('tetris_lb') || '[]');
-
     mockDB.push({ name: playerName, score: finalScore });
-
     mockDB.sort((a,b) => b.score - a.score);
-
     mockDB = mockDB.slice(0, 5); // Ambil Top 5
-
     localStorage.setItem('tetris_lb', JSON.stringify(mockDB));
 
-    
-
     setTimeout(() => { renderLeaderboardUI(mockDB); }, 1000);
-
     return;
-
   }
-
-
 
   // Jika Supabase sudah dikonfigurasi
-
   try {
-
     // 1. Insert Skor Baru
-
     await fetch(`${SUPABASE_URL}/rest/v1/leaderboard`, {
-
       method: 'POST',
-
       headers: {
-
         'apikey': SUPABASE_KEY,
-
         'Authorization': `Bearer ${SUPABASE_KEY}`,
-
         'Content-Type': 'application/json',
-
         'Prefer': 'return=minimal'
-
       },
-
       body: JSON.stringify({ name: playerName, score: finalScore })
-
     });
-
-
 
     // 2. Fetch Top 5 Leaderboard
-
     const response = await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=name,score&order=score.desc&limit=5`, {
-
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-
     });
-
     const data = await response.json();
-
     renderLeaderboardUI(data);
 
-
-
   } catch (error) {
-
     lbContainer.innerHTML = '<p style="color:#ef4444">Gagal memuat leaderboard koneksi API error.</p>';
-
   }
-
 }
-
-
 
 function renderLeaderboardUI(data) {
-
   const lbContainer = $('leaderboard-container');
-
   lbContainer.innerHTML = '';
-
   if (data.length === 0) {
-
     lbContainer.innerHTML = '<p>Belum ada skor.</p>'; return;
-
   }
-
   data.forEach((row, i) => {
-
     lbContainer.innerHTML += `
-
       <div class="lb-row">
-
         <span>${i+1}. ${row.name}</span>
-
         <span>${row.score}</span>
-
       </div>`;
-
   });
-
 }
-
-
 
 // --- ALUR INPUT NAMA ---
-
 $('save-name-btn').addEventListener('click', () => {
-
   const inputVal = $('player-input').value.trim().toUpperCase();
-
   playerName = inputVal !== "" ? inputVal : "ANON";
-
   playerEl.innerText = playerName;
-
   nameScreen.classList.add('hidden');
-
   startScreen.classList.remove('hidden');
-
 });
 
-
-
 // --- AUDIO ---
-
 let audioOK = false, bgmSynth, sfxSynth, bgmSequence;
-
 try {
-
   bgmSynth = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.1 } }).toDestination();
-
   bgmSynth.volume.value = -15;
-
   sfxSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle' } }).toDestination();
-
   sfxSynth.volume.value = -8;
-
   const bgmNotes = ['E5','B4','C5','D5','C5','B4','A4','A4','C5','E5','D5','C5','B4','B4','C5','D5','E5','C5','A4','A4',null];
-
   bgmSequence = new Tone.Sequence((t, n) => { if (n != null) bgmSynth.triggerAttackRelease(n, '8n', t); }, bgmNotes, '8n');
-
   audioOK = true;
-
 } catch (e) { console.warn('Audio nonaktif:', e); }
 
-
-
 function playSound(type) {
-
   if (!audioOK || Tone.context.state !== 'running') return;
-
   try {
-
     const n = Tone.now();
-
     switch (type) {
-
       case 'move': sfxSynth.triggerAttackRelease('C4', '64n'); break;
-
       case 'rotate': sfxSynth.triggerAttackRelease('E4', '64n'); break;
-
       case 'drop': sfxSynth.triggerAttackRelease('G2', '16n'); break;
-
       case 'clear':
-
         sfxSynth.triggerAttackRelease('C5', '16n', n);
-
         sfxSynth.triggerAttackRelease('E5', '16n', n + 0.1);
-
         sfxSynth.triggerAttackRelease('G5', '16n', n + 0.2);
-
         sfxSynth.triggerAttackRelease('C6', '8n', n + 0.3); break;
-
       case 'gameover':
-
         sfxSynth.triggerAttackRelease('Gb4', '8n', n);
-
         sfxSynth.triggerAttackRelease('F4', '8n', n + 0.2);
-
         sfxSynth.triggerAttackRelease('E4', '8n', n + 0.4);
-
         sfxSynth.triggerAttackRelease('Eb4', '2n', n + 0.6); break;
-
     }
-
   } catch (e) {}
-
 }
+
+// ====== BACKGROUND MUSIC FILE ======
+// Ganti nama file di bawah ini dengan file mp4 kamu (taruh di folder yang sama dengan file HTML ini,
+// atau pakai URL lengkap, contoh: 'https://situskamu.com/music.mp4')
+const BGM_FILE = 'bgm.mp4';
+const BGM_VOLUME = 0.4; // 0.0 - 1.0
+
+let bgmAudio = null, bgmFileOK = false;
+try {
+  bgmAudio = new Audio(BGM_FILE);
+  bgmAudio.loop = true;
+  bgmAudio.volume = BGM_VOLUME;
+  bgmAudio.preload = 'auto';
+  bgmAudio.addEventListener('error', () => {
+    bgmFileOK = false;
+    console.warn('File musik gagal dimuat, memakai musik bawaan:', BGM_FILE);
+    // Jika game sedang berjalan, langsung pindah ke musik synth bawaan
+    if (gameStarted && !isGameOver && !isPaused) music('start');
+  });
+  bgmFileOK = true;
+} catch (e) { bgmFileOK = false; }
+// ===================================
 
 function music(action) {
+  // Pakai file mp4 jika tersedia
+  if (bgmFileOK && bgmAudio) {
+    try {
+      if (action === 'start') { bgmAudio.currentTime = 0; bgmAudio.playbackRate = 1; bgmAudio.play().catch(() => {}); }
+      else if (action === 'stop') { bgmAudio.pause(); bgmAudio.currentTime = 0; }
+      else if (action === 'pause') bgmAudio.pause();
+      else if (action === 'resume') bgmAudio.play().catch(() => {});
+      else if (action === 'tempo') bgmAudio.playbackRate = Math.min(1.5, 1 + (level - 1) * 0.04);
+    } catch (e) {}
+    return;
+  }
 
+  // Fallback: musik synth bawaan (kode asli)
   if (!audioOK) return;
-
   try {
-
     if (action === 'start') { Tone.Transport.stop(); bgmSequence.stop(); Tone.Transport.bpm.value = 120; bgmSequence.start(0); Tone.Transport.start(); }
-
     else if (action === 'stop') { Tone.Transport.stop(); bgmSequence.stop(); }
-
     else if (action === 'pause') Tone.Transport.pause();
-
     else if (action === 'resume') Tone.Transport.start();
-
     else if (action === 'tempo') Tone.Transport.bpm.value = 120 + level * 5;
-
   } catch (e) {}
-
 }
-
-
 
 // --- LOGIKA TETRIS ---
-
 const COLORS = [null,'#06b6d4','#3b82f6','#f97316','#eab308','#22c55e','#a855f7','#ef4444'];
-
 const TETROMINOES = [[],[[0,1,0,0],[0,1,0,0],[0,1,0,0],[0,1,0,0]],[[2,0,0],[2,2,2],[0,0,0]],[[0,0,3],[3,3,3],[0,0,0]],[[4,4],[4,4]],[[0,5,5],[5,5,0],[0,0,0]],[[0,6,0],[6,6,6],[0,0,0]],[[7,7,0],[0,7,7],[0,0,0]]];
-
 let player = { pos: { x: 0, y: 0 }, matrix: null };
-
 const createMatrix = (w, h) => Array.from({ length: h }, () => new Array(w).fill(0));
 
-
-
 function playerReset() {
-
   const id = 1 + (Math.random() * 7 | 0);
-
   player.matrix = TETROMINOES[id].map(r => [...r]);
-
   player.pos.y = 0;
-
   player.pos.x = (COLS >> 1) - (player.matrix[0].length >> 1);
-
   if (collide(board, player)) gameOver();
-
 }
-
-
 
 function collide(b, p) {
-
   const m = p.matrix, o = p.pos;
-
   for (let y = 0; y < m.length; ++y)
-
     for (let x = 0; x < m[y].length; ++x)
-
       if (m[y][x] !== 0 && (b[y + o.y] && b[y + o.y][x + o.x]) !== 0) return true;
-
   return false;
-
 }
-
-
 
 function merge(b, p) {
-
   p.matrix.forEach((row, y) => row.forEach((v, x) => { if (v !== 0) b[y + p.pos.y][x + p.pos.x] = v; }));
-
 }
-
-
 
 function arenaSweep() {
-
   let cleared = 0;
-
   outer: for (let y = board.length - 1; y >= 0; --y) {
-
     for (let x = 0; x < board[y].length; ++x) if (board[y][x] === 0) continue outer;
-
     board.unshift(board.splice(y, 1)[0].fill(0));
-
     ++y; cleared++;
-
   }
-
   if (cleared > 0) {
-
     playSound('clear');
-
     score += [0, 100, 300, 500, 800][Math.min(cleared, 4)] * level;
-
     lines += cleared;
-
     level = Math.floor(lines / 10) + 1;
-
     // Kecepatan diubah: batas base 800 dikurangi berdasarkan level
-
     dropInterval = Math.max(100, 800 - level * 80);
-
     music('tempo');
-
     updateScoreBoard();
-
   }
-
 }
-
-
 
 function updateScoreBoard() { scoreEl.innerText = score; linesEl.innerText = lines; levelEl.innerText = level; }
 
-
-
 function lockPiece() { merge(board, player); playerReset(); arenaSweep(); if (!isGameOver) playSound('drop'); dropCounter = 0; }
-
 function playerDrop() { if (isPaused) return; player.pos.y++; if (collide(board, player)) { player.pos.y--; lockPiece(); } dropCounter = 0; }
-
 function playerHardDrop() { if (isPaused) return; while (!collide(board, player)) player.pos.y++; player.pos.y--; lockPiece(); }
-
 function playerMove(dir) { if (isPaused) return; player.pos.x += dir; if (collide(board, player)) player.pos.x -= dir; else playSound('move'); }
-
 function rotateMatrix(m, dir) { for (let y = 0; y < m.length; ++y) for (let x = 0; x < y; ++x) [m[x][y], m[y][x]] = [m[y][x], m[x][y]]; if (dir > 0) m.forEach(r => r.reverse()); else m.reverse(); }
-
 function playerRotate() {
-
   if (isPaused) return; const pos = player.pos.x; let offset = 1; rotateMatrix(player.matrix, 1);
-
   while (collide(board, player)) { player.pos.x += offset; offset = -(offset + (offset > 0 ? 1 : -1));
-
     if (offset > player.matrix[0].length) { rotateMatrix(player.matrix, -1); player.pos.x = pos; return; }
-
   } playSound('rotate');
-
 }
-
-
 
 // --- RENDER ---
-
 function drawMatrix(matrix, off) {
-
   matrix.forEach((row, y) => row.forEach((v, x) => {
-
     if (v === 0) return;
-
     const px = (x + off.x) * BLOCK_SIZE, py = (y + off.y) * BLOCK_SIZE;
-
     ctx.fillStyle = COLORS[v]; ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
-
     ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(px, py, BLOCK_SIZE, 4); ctx.fillRect(px, py, 4, BLOCK_SIZE);
-
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(px, py + BLOCK_SIZE - 4, BLOCK_SIZE, 4); ctx.fillRect(px + BLOCK_SIZE - 4, py, 4, BLOCK_SIZE);
-
     ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
-
   }));
-
 }
-
 function draw() {
-
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
   ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
-
   for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) ctx.strokeRect(c * BLOCK_SIZE, r * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-
   drawMatrix(board, { x: 0, y: 0 });
-
   if (player.matrix) drawMatrix(player.matrix, player.pos);
-
 }
-
-
 
 function update(time) {
-
   if (isGameOver || isPaused) return;
-
   const delta = Math.min(time - lastTime, 250);
-
   lastTime = time;
-
   dropCounter += delta;
-
   if (dropCounter > dropInterval) playerDrop();
-
   draw();
-
   rafId = requestAnimationFrame(update);
-
 }
-
 function loop() { cancelAnimationFrame(rafId); lastTime = performance.now(); rafId = requestAnimationFrame(update); }
 
-
-
 function gameOver() {
-
   isGameOver = true;
-
   cancelAnimationFrame(rafId);
-
   music('stop');
-
   playSound('gameover');
-
   $('final-score').innerText = score;
-
   gameOverScreen.classList.remove('hidden');
-
   pauseBtn.disabled = true;
-
   draw();
-
-  
 
   // Memanggil API Supabase untuk menyimpan dan menampilkan skor
-
   submitAndFetchLeaderboard(score);
-
 }
-
-
 
 function togglePause() {
-
   if (!gameStarted || isGameOver) return;
-
   isPaused = !isPaused;
-
   if (isPaused) { cancelAnimationFrame(rafId); pauseScreen.classList.remove('hidden'); music('pause'); pauseBtn.innerText = 'RESUME'; }
-
   else { pauseScreen.classList.add('hidden'); music('resume'); pauseBtn.innerText = 'PAUSE'; loop(); }
-
 }
-
-
 
 function startGame() {
-
-  if (audioOK) { try { Tone.start().then(() => music('start')).catch(() => {}); } catch (e) {} }
-
+  if (audioOK) {
+    try {
+      // Tone.start() tetap dipanggil agar efek suara (SFX) aktif.
+      // Musik synth hanya dimulai di sini jika file mp4 tidak dipakai.
+      Tone.start().then(() => { if (!bgmFileOK) music('start'); }).catch(() => {});
+    } catch (e) {}
+  }
+  // File mp4 dimulai langsung di dalam klik user (diperlukan oleh browser, terutama iOS/Safari)
+  if (bgmFileOK) music('start');
   board = createMatrix(COLS, ROWS);
-
   score = 0; lines = 0; level = 1; dropInterval = 800; // Reset ke kecepatan baru
-
   isGameOver = false; isPaused = false; gameStarted = true;
-
   updateScoreBoard();
-
   [startScreen, pauseScreen, gameOverScreen, nameScreen].forEach(e => e.classList.add('hidden'));
-
   pauseBtn.disabled = false; pauseBtn.innerText = 'PAUSE';
-
   $('reset-btn').disabled = false;
-
   playerReset();
-
   loop();
-
 }
-
-
 
 function resetGame() {
-
   if (!gameStarted) return;
-
   if (!isGameOver && !confirm('Reset game dari awal? Skor akan hilang.')) return;
-
   cancelAnimationFrame(rafId);
-
   music('stop');
-
   board = createMatrix(COLS, ROWS);
-
   score = 0; lines = 0; level = 1; dropInterval = 800; dropCounter = 0;
-
   isGameOver = false; isPaused = false; gameStarted = false;
-
   player.matrix = null;
-
   updateScoreBoard();
-
   pauseScreen.classList.add('hidden');
-
   gameOverScreen.classList.add('hidden');
-
   nameScreen.classList.remove('hidden'); // Kembali ke input nama
-
   pauseBtn.disabled = true; pauseBtn.innerText = 'PAUSE';
-
   $('reset-btn').disabled = true;
-
   draw();
-
 }
-
-
 
 document.addEventListener('keydown', e => {
-
   if (!gameStarted || isGameOver || isPaused) { if (e.keyCode === 27 || e.keyCode === 80) togglePause(); return; }
-
   if ([37, 38, 39, 40, 32].includes(e.keyCode)) e.preventDefault();
-
   switch (e.keyCode) { case 37: playerMove(-1); break; case 39: playerMove(1); break; case 40: playerDrop(); break; case 38: playerRotate(); break; case 32: playerHardDrop(); break; }
-
 });
-
 document.addEventListener('visibilitychange', () => { if (document.hidden && gameStarted && !isGameOver && !isPaused) togglePause(); });
 
-
-
 $('start-btn').addEventListener('click', startGame);$('restart-btn').addEventListener('click', startGame);
-
 pauseBtn.addEventListener('click', togglePause);
-
 $('reset-btn').addEventListener('click', resetGame);$('resume-btn').addEventListener('click', togglePause);
 
-
-
 function bindTouchBtn(id, cb, repeat) {
-
   const el = $(id); let delay, timer;
-
   const act = () => { if (gameStarted && !isGameOver && !isPaused) cb(); };
-
   const stop = () => { clearTimeout(delay); clearInterval(timer); el.classList.remove('active'); };
-
   el.addEventListener('pointerdown', e => { e.preventDefault(); stop(); el.classList.add('active'); act(); if (repeat) delay = setTimeout(() => { timer = setInterval(act, 70); }, 170); });
-
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => el.addEventListener(ev, stop)); el.addEventListener('contextmenu', e => e.preventDefault());
-
 }
-
 bindTouchBtn('btn-left', () => playerMove(-1), true); bindTouchBtn('btn-right', () => playerMove(1), true); bindTouchBtn('btn-down', playerDrop, true); bindTouchBtn('btn-rotate', playerRotate, false); bindTouchBtn('btn-drop', playerHardDrop, false);
 
-
-
 board = createMatrix(COLS, ROWS); resizeBoard(); draw();
-
 </script>
-
 </body>
-
-</html> 
+</html>
